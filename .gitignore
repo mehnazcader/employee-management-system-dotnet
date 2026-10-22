@@ -1,0 +1,19 @@
+# .NET generated files
+**/bin/
+**/obj/
+
+# IDE files
+.vs/
+.vscode/
+
+# Local development configuration
+**/appsettings.Development.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# React generated files
+**/node_modules/
+**/dist/
