@@ -1,82 +1,163 @@
-// Imports the Data namespace from our project.
-// Provides AppDbContext.
+// Imports AppDbContext, which allows the controller to access the database.
 using EmployeeManagement.Api.Data;
-// Imports the Models namespace from our project.
-// Provides Employee
+
+// Imports the Employee model.
 using EmployeeManagement.Api.Models;
-// Provides ControllerBase, route attributes and HTTP results
+
+// Provides ControllerBase, routing attributes and HTTP responses.
 using Microsoft.AspNetCore.Mvc;
-// Provides ToListAsync(),
-// which retrieves employee records asynchronously from SQL Server.
+
+// Provides asynchronous EF Core methods such as ToListAsync() and AnyAsync().
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagement.Api.Controllers;
 
-// Enables API behaviors, including automatic HTTP 400
-// responses when model validation fails.
+// Enables automatic model validation.
+// Invalid employee data returns HTTP 400 Bad Request.
 [ApiController]
-// Replaces [controller] with Employees, resulting in
-// the base route /api/employees.
+
+// Sets the base URL for this controller to /api/employees.
 [Route("api/[controller]")]
 public class EmployeesController : ControllerBase
 {
-    // 'private': only this class can access the field.
-    // 'readonly': field cannot be reassigned after construction
+    // Stores the database context used by this controller.
     private readonly AppDbContext _context;
 
-    // Constructor injection: ASP.NET Core provides AppDbContext.
+    // ASP.NET Core provides AppDbContext through dependency injection.
     public EmployeesController(AppDbContext context)
     {
         _context = context;
     }
 
-    //View Employees
+    // --------------------------------------------------
     // GET: api/employees
-    // Retrieve all employees from SQL Server.
+    // Retrieve all employees.
+    // --------------------------------------------------
     [HttpGet]
-    // public: Allows ASP.NET Core to access this method.
-    // async/Task: Supports asynchronous operations using await.
-    // ActionResult: Allows us to return an HTTP response.
-    // IEnumerable<Employee>: Represents a collection of employees.
     public async Task<ActionResult<IEnumerable<Employee>>> GetEmployees()
     {
-        // _context is our AppDbContext provided through dependency injection.
-        // .Employees represents the employee records in SQL Server.
-        // ToListAsync() retrieves all employees as a list.
-        // await waits asynchronously for the database query to finish.
-        // var employees stores the retrieved records.
+        // Retrieve all employee records from SQL Server.
         var employees = await _context.Employees.ToListAsync();
-        // Returns HTTP 200 OK with employee records in JSON format.
-        // If no employees exist, an empty list [] is returned.
+
+        // Return HTTP 200 OK with the employee list.
         return Ok(employees);
     }
 
-    //Add an employee
+    // --------------------------------------------------
+    // GET: api/employees/2
+    // Retrieve one employee using their ID.
+    // --------------------------------------------------
+    [HttpGet("{id}")]
+    public async Task<ActionResult<Employee>> GetEmployee(int id)
+    {
+        // Search for an employee using their primary key.
+        var employee = await _context.Employees.FindAsync(id);
+
+        // Return HTTP 404 if the employee does not exist.
+        if (employee == null)
+        {
+            return NotFound();
+        }
+
+        // Return HTTP 200 OK with the employee information.
+        return Ok(employee);
+    }
+
+    // --------------------------------------------------
     // POST: api/employees
-    // Add a new employee to SQL Server.
+    // Create a new employee.
+    // --------------------------------------------------
     [HttpPost]
-    // async/Task: Allows asynchronous database operations.
-    // ActionResult<Employee>: Returns an HTTP response with employee data.
-    // Employee employee: Receives employee information from the JSON request.
     public async Task<ActionResult<Employee>> CreateEmployee(Employee employee)
     {
-        // ASP.NET Core automatically validates the Employee model
-        // using [Required] and [EmailAddress].
-        // Invalid data returns HTTP 400 Bad Request.
-        // Duplicate-email checking is not yet implemented.
+        // Check whether another employee already uses this email.
+        bool emailExists = await _context.Employees
+            .AnyAsync(e => e.Email == employee.Email);
 
-        // Adds the new employee to EF Core's change tracker.
-        // The employee is not saved to SQL Server yet.
+        // Reject duplicate emails with HTTP 409 Conflict.
+        if (emailExists)
+        {
+            return Conflict("An employee with this email already exists.");
+        }
+
+        // Mark the employee for insertion into the database.
         _context.Employees.Add(employee);
-        // Saves the employee to SQL Server asynchronously.
-        // SQL Server automatically generates the employee's ID.
+
+        // Save the employee to SQL Server.
+        // SQL Server automatically generates the employee ID.
         await _context.SaveChangesAsync();
 
-        // Returns HTTP 201 Created with the employee information.
-        // The URL identifies the new employee, e.g. /api/employees/1.
-        return Created(
-            $"/api/employees/{employee.Id}",
-            employee
-        );
+        // Return HTTP 201 Created with the new employee details.
+        return Created($"/api/employees/{employee.Id}", employee);
+    }
+
+    // --------------------------------------------------
+    // PUT: api/employees/2
+    // Update an existing employee.
+    // --------------------------------------------------
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateEmployee(
+        int id,
+        Employee updatedEmployee)
+    {
+        // Find the employee we want to update.
+        var employee = await _context.Employees.FindAsync(id);
+
+        // Return HTTP 404 if the employee does not exist.
+        if (employee == null)
+        {
+            return NotFound();
+        }
+
+        // Check whether ANOTHER employee already uses the new email.
+        // e.Id != id excludes the employee currently being updated.
+        bool emailExists = await _context.Employees
+            .AnyAsync(e => e.Email == updatedEmployee.Email && e.Id != id);
+
+        // Reject duplicate emails with HTTP 409 Conflict.
+        if (emailExists)
+        {
+            return Conflict("An employee with this email already exists.");
+        }
+
+        // Update the existing employee's information.
+        // We do not change the employee ID.
+        employee.FullName = updatedEmployee.FullName;
+        employee.Email = updatedEmployee.Email;
+        employee.Department = updatedEmployee.Department;
+        employee.JobTitle = updatedEmployee.JobTitle;
+        employee.IsActive = updatedEmployee.IsActive;
+
+        // Save the updated information to SQL Server.
+        await _context.SaveChangesAsync();
+
+        // Return HTTP 204 No Content when the update succeeds.
+        return NoContent();
+    }
+
+    // --------------------------------------------------
+    // DELETE: api/employees/2
+    // Delete an employee using their ID.
+    // --------------------------------------------------
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteEmployee(int id)
+    {
+        // Find the employee we want to delete.
+        var employee = await _context.Employees.FindAsync(id);
+
+        // Return HTTP 404 if the employee does not exist.
+        if (employee == null)
+        {
+            return NotFound();
+        }
+
+        // Mark the employee for deletion.
+        _context.Employees.Remove(employee);
+
+        // Permanently delete the employee from SQL Server.
+        await _context.SaveChangesAsync();
+
+        // Return HTTP 204 No Content when deletion succeeds.
+        return NoContent();
     }
 }
