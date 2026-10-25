@@ -1,23 +1,47 @@
 
+/* Global application styling */
+
 :root {
-  font-family: Inter, system-ui, Arial, sans-serif;
-  color: #0f172a;
-  background: #f4f7fb;
+  font-family: Inter, "Segoe UI", system-ui, Arial, sans-serif;
+  color: #25304f;
+  background: #f6f7fc;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Consistent element sizing */
 
 * {
   box-sizing: border-box;
 }
 
+/* Application background */
+
 body {
   margin: 0;
   min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      ellipse at top right,
+      rgba(210, 201, 255, 0.25),
+      transparent 40%
+    ),
+    #f6f7fc;
 }
+
+/* Use the same font for form controls */
 
 input,
 button {
   font-family: inherit;
+}
+
+/* Text selection styling */
+
+::selection {
+  background: #e0dcff;
+  color: #4133a6;
 }
