@@ -29,6 +29,30 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+// Apply pending database migrations when the application starts.
+// Retry because SQL Server may take some time to become ready in Docker.
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    const int maxAttempts = 20;
+
+    for (int attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            await dbContext.Database.MigrateAsync();
+            break;
+        }
+        catch (Microsoft.Data.SqlClient.SqlException) when (attempt < maxAttempts)
+        {
+            Console.WriteLine(
+                $"SQL Server is not ready. Retrying ({attempt}/{maxAttempts})...");
+
+            await Task.Delay(TimeSpan.FromSeconds(5));
+        }
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

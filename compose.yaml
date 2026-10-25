@@ -1,0 +1,45 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - employee-network
+
+  api:
+    build:
+      context: ./backend/EmployeeManagement.Api
+      dockerfile: Dockerfile
+    image: employee-management-api:dev
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=EmployeeManagementDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+    depends_on:
+      - db
+    networks:
+      - employee-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: employee-management-frontend:dev
+    ports:
+      - "8081:80"
+    depends_on:
+      - api
+    networks:
+      - employee-network
+
+volumes:
+  sqlserver_data:
+
+networks:
+  employee-network:
