@@ -58,14 +58,21 @@ const emptyEmployee = {
 
 function App() {
   // React state
+  // Store the list of employees retrieved from the backend.
   const [employees, setEmployees] = useState([])
+  // Store the values entered in the employee form.
   const [form, setForm] = useState({ ...emptyEmployee })
+  // Track which employee is being edited, or null when adding.
   const [editingId, setEditingId] = useState(null)
+  // Track whether employee data is loading.
   const [loading, setLoading] = useState(true)
+  // Track whether the form is being submitted.
   const [saving, setSaving] = useState(false)
+  // Store error messages to display to the user.
   const [error, setError] = useState('')
+  // Store success messages to display to the user.
   const [message, setMessage] = useState('')
-
+  // Reference the form so we can scroll to it when editing.
   const formRef = useRef(null)
 
   // GET: Retrieve all employees from the API.

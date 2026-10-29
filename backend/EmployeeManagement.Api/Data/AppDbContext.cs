@@ -1,13 +1,15 @@
-
+//bridge between your C# backend and SQL Server
+//import namespaces
 using EmployeeManagement.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
+//define database context for the application
 namespace EmployeeManagement.Api.Data;
 
 public class AppDbContext : DbContext
 {
     // Constructor receives the database configuration from Program.cs.
-    public AppDbContext(DbContextOptions<AppDbContext> options)
+    public AppDbContext(DbContextOpPtions<AppDbContext> options)
         : base(options)
     {
     }
@@ -20,6 +22,7 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        //make email address unique for each employee
         // Each employee must have a unique email address.
         modelBuilder.Entity<Employee>()
             .HasIndex(e => e.Email)

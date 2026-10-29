@@ -1,3 +1,4 @@
+//represents the information stored for each employee in your system.
 //imports [Required] and [EmailAddress] validation attributes.
 using System.ComponentModel.DataAnnotations;
 
@@ -11,6 +12,7 @@ public class Employee
     // SQL Server generates the ID automatically
     public int Id { get; set; }
 
+    //required means field is mandatory
     // Requires a non-empty value during model validation.
     [Required]
     // 'get' reads the value; 'set' changes it.
@@ -20,6 +22,7 @@ public class Employee
     // Email is required and checked for valid-looking format.
     // This does NOT check whether the email is unique
     [Required]
+    //Checks whether the email has an acceptable format.
     [EmailAddress]
     public string Email { get; set; } = string.Empty;
 

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿//Migrations keep the database structure in sync with changes defined in your EF Core model.using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 

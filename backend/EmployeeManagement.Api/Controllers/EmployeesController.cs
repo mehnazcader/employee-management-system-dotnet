@@ -1,4 +1,5 @@
-
+//main backend file, handles all employee operations
+//import namespaces
 using EmployeeManagement.Api.Data;
 using EmployeeManagement.Api.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -6,12 +7,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagement.Api.Controllers;
 
+//creating the controller
 [ApiController]
 [Route("api/[controller]")]
+//This class receives employee-related HTTP requests and returns responses.
+
 public class EmployeesController : ControllerBase
 {
+    //connect controller to database
     private readonly AppDbContext _context;
 
+    //React's dropdowns only guide users through the interface
     // These are the same departments and job titles used in React.
     // The backend checks them independently, so requests sent through
     // Postman cannot bypass the rule enforced by the dropdowns.
@@ -82,6 +88,8 @@ public class EmployeesController : ControllerBase
             return "Please select a valid department.";
         }
 
+        //checks whether the job title is empty or doesn't belong to the department.
+
         if (string.IsNullOrWhiteSpace(jobTitle) ||
             !allowedJobs.Contains(
                 jobTitle.Trim(),
@@ -97,6 +105,9 @@ public class EmployeesController : ControllerBase
 
     // GET: api/employees
     // Retrieve all employees.
+    //backend needs to retrieve employee records from SQL Server, and database operations can take time.
+    //async allows the method to use await without blocking a server thread while waiting for the database.
+    //returns 200 ok with a list of employees in the response body.
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Employee>>> GetEmployees()
     {
@@ -116,11 +127,12 @@ public class EmployeesController : ControllerBase
         {
             return NotFound();
         }
-
+        // 200 ok with the employee in the response body.
         return Ok(employee);
     }
 
     // POST: api/employees
+    //add an employee
     // Create a new employee.
     [HttpPost]
     public async Task<ActionResult<Employee>> CreateEmployee(
@@ -151,6 +163,7 @@ public class EmployeesController : ControllerBase
         // SQL Server generates the employee ID.
         await _context.SaveChangesAsync();
 
+        //201 created with the new employee in the response body and a Location header pointing to the new resource.
         return Created(
             $"/api/employees/{employee.Id}",
             employee);
@@ -214,6 +227,7 @@ public class EmployeesController : ControllerBase
 
         if (employee == null)
         {
+            //return 404 not found when the employee doesn't exist.
             return NotFound();
         }
 

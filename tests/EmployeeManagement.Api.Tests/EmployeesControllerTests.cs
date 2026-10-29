@@ -10,6 +10,7 @@ namespace EmployeeManagement.Api.Tests;
 
 public class EmployeesControllerTests
 {
+    //creates a separate temp db for each test to ensure isolation and prevent interference between tests.
     // Create an independent in-memory database for every test.
     private static AppDbContext CreateDbContext()
     {
@@ -36,7 +37,9 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // GET ALL EMPLOYEES
     // --------------------------------------------------
+    //fact tells xUnit that this method is an automated test
     [Fact]
+    // Check that GET returns the employee list with a 200 OK response.
     public async Task GetEmployees_ReturnsOkWithEmployees()
     {
         using var context = CreateDbContext();
@@ -47,7 +50,7 @@ public class EmployeesControllerTests
         var controller = new EmployeesController(context);
 
         var result = await controller.GetEmployees();
-
+        //Checks whether the actual result matches the expected result.
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var employees =
             Assert.IsAssignableFrom<IEnumerable<Employee>>(okResult.Value);
@@ -59,6 +62,7 @@ public class EmployeesControllerTests
     // GET ONE EXISTING EMPLOYEE
     // --------------------------------------------------
     [Fact]
+    // Check that GET finds an existing employee by ID and returns their details.
     public async Task GetEmployee_ExistingId_ReturnsOk()
     {
         using var context = CreateDbContext();
@@ -80,7 +84,9 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // GET AN EMPLOYEE THAT DOES NOT EXIST
     // --------------------------------------------------
+    // Check that GET returns 404 Not Found when the employee ID does not exist.
     [Fact]
+
     public async Task GetEmployee_InvalidId_ReturnsNotFound()
     {
         using var context = CreateDbContext();
@@ -94,6 +100,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // CREATE A VALID EMPLOYEE
     // --------------------------------------------------
+    // Check that POST creates a valid employee, returns 201 Created, and generates an ID.
     [Fact]
     public async Task CreateEmployee_ValidEmployee_ReturnsCreated()
     {
@@ -114,6 +121,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // REJECT A DUPLICATE EMAIL
     // --------------------------------------------------
+    // Check that POST rejects a duplicate email with 409 Conflict and does not save the new employee.
     [Fact]
     public async Task CreateEmployee_DuplicateEmail_ReturnsConflict()
     {
@@ -136,6 +144,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // UPDATE AN EXISTING EMPLOYEE
     // --------------------------------------------------
+    // Check that PUT updates an existing employee, saves the changes, and returns 204 No Content.
     [Fact]
     public async Task UpdateEmployee_ExistingId_ReturnsNoContent()
     {
@@ -174,6 +183,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // UPDATE AN EMPLOYEE THAT DOES NOT EXIST
     // --------------------------------------------------
+    // Check that PUT returns 404 Not Found when the employee ID does not exist.
     [Fact]
     public async Task UpdateEmployee_InvalidId_ReturnsNotFound()
     {
@@ -189,6 +199,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // REJECT A DUPLICATE EMAIL DURING UPDATE
     // --------------------------------------------------
+    // Check that PUT returns 409 Conflict when updating an employee with another employee's email.
     [Fact]
     public async Task UpdateEmployee_DuplicateEmail_ReturnsConflict()
     {
@@ -229,6 +240,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // DELETE AN EXISTING EMPLOYEE
     // --------------------------------------------------
+    // Check that DELETE removes an existing employee and returns 204 No Content.
     [Fact]
     public async Task DeleteEmployee_ExistingId_ReturnsNoContent()
     {
@@ -249,6 +261,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // DELETE AN EMPLOYEE THAT DOES NOT EXIST
     // --------------------------------------------------
+    // Check that DELETE returns 404 Not Found when the employee ID does not exist.
     [Fact]
     public async Task DeleteEmployee_InvalidId_ReturnsNotFound()
     {
@@ -267,6 +280,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // POST: Finance cannot have a Software Developer.
     // --------------------------------------------------
+    // Check that POST rejects an invalid department and job title with 400 Bad Request.
     [Fact]
     public async Task CreateEmployee_InvalidJobForDepartment_ReturnsBadRequest()
     {
@@ -293,6 +307,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // POST: Reject departments not in the approved list.
     // --------------------------------------------------
+    // Check that POST rejects an unknown department with 400 Bad Request and saves nothing.
     [Fact]
     public async Task CreateEmployee_UnknownDepartment_ReturnsBadRequest()
     {
@@ -317,6 +332,7 @@ public class EmployeesControllerTests
     // --------------------------------------------------
     // POST: Reject job titles not in the approved list.
     // --------------------------------------------------
+    // Check that POST rejects an unknown job title with 400 Bad Request and saves nothing.
     [Fact]
     public async Task CreateEmployee_UnknownJobTitle_ReturnsBadRequest()
     {
@@ -342,10 +358,11 @@ public class EmployeesControllerTests
     // PUT: Reject an invalid department/job title pair.
     // Also confirm the saved employee is not modified.
     // --------------------------------------------------
+    // Check that PUT rejects an invalid department/job title with 400 Bad Request and keeps the original employee unchanged.
     [Fact]
     public async Task UpdateEmployee_InvalidJobForDepartment_ReturnsBadRequest()
     {
-        using var context = CreateDbContext();
+        using var context = CreateDbContePxt();
 
         var employee = CreateSampleEmployee();
         context.Employees.Add(employee);

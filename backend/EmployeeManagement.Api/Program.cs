@@ -1,8 +1,13 @@
+//program.cs configures the application before it receives requests
+//import namespaces
 using EmployeeManagement.Api.Data;
 using Microsoft.EntityFrameworkCore;
 
+//create application builder
 var builder = WebApplication.CreateBuilder(args);
 
+// Set up the connection between the backend and SQL Server.
+//connecting to sql server
 // Register AppDbContext for dependency injection.
 // Configure Entity Framework Core to connect to SQL Server.
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -11,12 +16,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
+//register controllers
+//allow backend to use controllers
 // Add services to the container.
 builder.Services.AddControllers();
 
 // Enable OpenAPI documentation.
 builder.Services.AddOpenApi();
 
+ //CORS is a browser security mechanism that controls whether a website can make requests to a different origin.
+ //configure cors
 // Allow the React frontend to communicate with the backend.
 builder.Services.AddCors(options =>
 {
@@ -28,7 +37,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+//build the application using all settings configured
 var app = builder.Build();
+//it applies migrations and handles SQL Server startup delays.
+// Use a try-catch block to apply database migrations and retry if SQL Server is not ready.
 // Apply pending database migrations when the application starts.
 // Retry because SQL Server may take some time to become ready in Docker.
 using (var scope = app.Services.CreateScope())
@@ -54,11 +66,13 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+//configure the api and start it
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
 
 app.UseHttpsRedirection();
 
@@ -67,6 +81,7 @@ app.UseCors("ReactApp");
 
 app.UseAuthorization();
 
+//connects URLs to controller methods.
 app.MapControllers();
-
+//starts the backend api
 app.Run();
