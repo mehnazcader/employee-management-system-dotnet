@@ -1,5 +1,5 @@
 ﻿//Migrations keep the database structure in sync with changes defined in your EF Core model.using Microsoft.EntityFrameworkCore.Migrations;
-
+using Microsoft.EntityFrameworkCore.Migrations;
 #nullable disable
 
 namespace EmployeeManagement.Api.Migrations

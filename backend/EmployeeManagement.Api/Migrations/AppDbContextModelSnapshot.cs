@@ -16,7 +16,7 @@ namespace EmployeeManagement.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -53,7 +53,7 @@ namespace EmployeeManagement.Api.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Employees");
+                    b.ToTable("Employees", (string)null);
                 });
 #pragma warning restore 612, 618
         }

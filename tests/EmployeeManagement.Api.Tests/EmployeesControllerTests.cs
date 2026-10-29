@@ -2,16 +2,23 @@
 using EmployeeManagement.Api.Controllers;
 using EmployeeManagement.Api.Data;
 using EmployeeManagement.Api.Models;
+using EmployeeManagement.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace EmployeeManagement.Api.Tests;
 
+// Unit tests for the employee controller.
+// Each test uses a separate in-memory database.
 public class EmployeesControllerTests
 {
-    //creates a separate temp db for each test to ensure isolation and prevent interference between tests.
-    // Create an independent in-memory database for every test.
+    // --------------------------------------------------
+    // TEST DATABASE
+    // --------------------------------------------------
+
+    // Create an independent database for every test.
+    // This prevents one test from affecting another.
     private static AppDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -21,7 +28,19 @@ public class EmployeesControllerTests
         return new AppDbContext(options);
     }
 
-    // Create a sample employee with a VALID department/job title.
+    // Create a controller with both required dependencies.
+    // The Excel service is needed because the controller
+    // now supports exporting employees.
+    private static EmployeesController CreateController(
+        AppDbContext context)
+    {
+        return new EmployeesController(
+            context,
+            new EmployeeExcelService()
+        );
+    }
+
+    // Create a sample employee for testing.
     private static Employee CreateSampleEmployee()
     {
         return new Employee
@@ -34,12 +53,11 @@ public class EmployeesControllerTests
         };
     }
 
-    // --------------------------------------------------
-    // GET ALL EMPLOYEES
-    // --------------------------------------------------
-    //fact tells xUnit that this method is an automated test
+    // ==================================================
+    // TEST 1: GET ALL EMPLOYEES
+    // ==================================================
+
     [Fact]
-    // Check that GET returns the employee list with a 200 OK response.
     public async Task GetEmployees_ReturnsOkWithEmployees()
     {
         using var context = CreateDbContext();
@@ -47,81 +65,102 @@ public class EmployeesControllerTests
         context.Employees.Add(CreateSampleEmployee());
         await context.SaveChangesAsync();
 
-        var controller = new EmployeesController(context);
+        var controller = CreateController(context);
 
         var result = await controller.GetEmployees();
-        //Checks whether the actual result matches the expected result.
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+
+        // GET returns an ActionResult containing an OkObjectResult.
+        var okResult =
+            Assert.IsType<OkObjectResult>(result.Result);
+
         var employees =
-            Assert.IsAssignableFrom<IEnumerable<Employee>>(okResult.Value);
+            Assert.IsAssignableFrom<IEnumerable<Employee>>(
+                okResult.Value
+            );
 
         Assert.Single(employees);
     }
 
-    // --------------------------------------------------
-    // GET ONE EXISTING EMPLOYEE
-    // --------------------------------------------------
+    // ==================================================
+    // TEST 2: GET AN EXISTING EMPLOYEE
+    // ==================================================
+
     [Fact]
-    // Check that GET finds an existing employee by ID and returns their details.
     public async Task GetEmployee_ExistingId_ReturnsOk()
     {
         using var context = CreateDbContext();
 
         var employee = CreateSampleEmployee();
+
         context.Employees.Add(employee);
         await context.SaveChangesAsync();
 
-        var controller = new EmployeesController(context);
+        var controller = CreateController(context);
 
         var result = await controller.GetEmployee(employee.Id);
 
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var returnedEmployee = Assert.IsType<Employee>(okResult.Value);
+        var okResult =
+            Assert.IsType<OkObjectResult>(result.Result);
 
-        Assert.Equal("Sara Ahmed", returnedEmployee.FullName);
+        var returnedEmployee =
+            Assert.IsType<Employee>(okResult.Value);
+
+        Assert.Equal(
+            "Sara Ahmed",
+            returnedEmployee.FullName
+        );
     }
 
-    // --------------------------------------------------
-    // GET AN EMPLOYEE THAT DOES NOT EXIST
-    // --------------------------------------------------
-    // Check that GET returns 404 Not Found when the employee ID does not exist.
-    [Fact]
+    // ==================================================
+    // TEST 3: GET AN EMPLOYEE THAT DOES NOT EXIST
+    // ==================================================
 
+    [Fact]
     public async Task GetEmployee_InvalidId_ReturnsNotFound()
     {
         using var context = CreateDbContext();
-        var controller = new EmployeesController(context);
+
+        var controller = CreateController(context);
 
         var result = await controller.GetEmployee(999);
 
-        Assert.IsType<NotFoundResult>(result.Result);
+        Assert.IsType<NotFoundObjectResult>(result.Result);
     }
 
-    // --------------------------------------------------
-    // CREATE A VALID EMPLOYEE
-    // --------------------------------------------------
-    // Check that POST creates a valid employee, returns 201 Created, and generates an ID.
+    // ==================================================
+    // TEST 4: CREATE A VALID EMPLOYEE
+    // ==================================================
+
     [Fact]
     public async Task CreateEmployee_ValidEmployee_ReturnsCreated()
     {
         using var context = CreateDbContext();
-        var controller = new EmployeesController(context);
+
+        var controller = CreateController(context);
 
         var employee = CreateSampleEmployee();
 
         var result = await controller.CreateEmployee(employee);
 
-        var createdResult = Assert.IsType<CreatedResult>(result.Result);
+        // The controller uses CreatedAtAction().
+        // This represents an HTTP 201 Created response.
+        var createdResult =
+            Assert.IsType<CreatedAtActionResult>(result);
 
         Assert.Equal(201, createdResult.StatusCode);
+
+        // Check that the employee was saved.
         Assert.Single(context.Employees);
+
+        // SQL Server normally generates this ID.
+        // The EF Core InMemory provider generates one for testing.
         Assert.True(employee.Id > 0);
     }
 
-    // --------------------------------------------------
-    // REJECT A DUPLICATE EMAIL
-    // --------------------------------------------------
-    // Check that POST rejects a duplicate email with 409 Conflict and does not save the new employee.
+    // ==================================================
+    // TEST 5: REJECT A DUPLICATE EMAIL
+    // ==================================================
+
     [Fact]
     public async Task CreateEmployee_DuplicateEmail_ReturnsConflict()
     {
@@ -130,31 +169,37 @@ public class EmployeesControllerTests
         context.Employees.Add(CreateSampleEmployee());
         await context.SaveChangesAsync();
 
-        var controller = new EmployeesController(context);
+        var controller = CreateController(context);
 
         var duplicateEmployee = CreateSampleEmployee();
+
         duplicateEmployee.FullName = "Another Employee";
 
-        var result = await controller.CreateEmployee(duplicateEmployee);
+        var result =
+            await controller.CreateEmployee(duplicateEmployee);
 
-        Assert.IsType<ConflictObjectResult>(result.Result);
+        // A duplicate email should produce HTTP 409 Conflict.
+        Assert.IsType<ConflictObjectResult>(result);
+
+        // No additional employee should be saved.
         Assert.Single(context.Employees);
     }
 
-    // --------------------------------------------------
-    // UPDATE AN EXISTING EMPLOYEE
-    // --------------------------------------------------
-    // Check that PUT updates an existing employee, saves the changes, and returns 204 No Content.
+    // ==================================================
+    // TEST 6: UPDATE AN EXISTING EMPLOYEE
+    // ==================================================
+
     [Fact]
     public async Task UpdateEmployee_ExistingId_ReturnsNoContent()
     {
         using var context = CreateDbContext();
 
         var employee = CreateSampleEmployee();
+
         context.Employees.Add(employee);
         await context.SaveChangesAsync();
 
-        var controller = new EmployeesController(context);
+        var controller = CreateController(context);
 
         var updatedEmployee = new Employee
         {
@@ -165,41 +210,66 @@ public class EmployeesControllerTests
             IsActive = false
         };
 
-        var result =
-            await controller.UpdateEmployee(employee.Id, updatedEmployee);
+        var result = await controller.UpdateEmployee(
+            employee.Id,
+            updatedEmployee
+        );
 
+        // Successful updates return HTTP 204 No Content.
         Assert.IsType<NoContentResult>(result);
 
+        // Retrieve the employee to verify the saved changes.
         var savedEmployee =
             await context.Employees.FindAsync(employee.Id);
 
         Assert.NotNull(savedEmployee);
-        Assert.Equal("Sara Updated", savedEmployee.FullName);
-        Assert.Equal("Human Resources", savedEmployee.Department);
-        Assert.Equal("HR Manager", savedEmployee.JobTitle);
+
+        Assert.Equal(
+            "Sara Updated",
+            savedEmployee.FullName
+        );
+
+        Assert.Equal(
+            "sara.updated@example.com",
+            savedEmployee.Email
+        );
+
+        Assert.Equal(
+            "Human Resources",
+            savedEmployee.Department
+        );
+
+        Assert.Equal(
+            "HR Manager",
+            savedEmployee.JobTitle
+        );
+
         Assert.False(savedEmployee.IsActive);
     }
 
-    // --------------------------------------------------
-    // UPDATE AN EMPLOYEE THAT DOES NOT EXIST
-    // --------------------------------------------------
-    // Check that PUT returns 404 Not Found when the employee ID does not exist.
+    // ==================================================
+    // TEST 7: UPDATE A NONEXISTENT EMPLOYEE
+    // ==================================================
+
     [Fact]
     public async Task UpdateEmployee_InvalidId_ReturnsNotFound()
     {
         using var context = CreateDbContext();
-        var controller = new EmployeesController(context);
 
-        var result =
-            await controller.UpdateEmployee(999, CreateSampleEmployee());
+        var controller = CreateController(context);
 
-        Assert.IsType<NotFoundResult>(result);
+        var result = await controller.UpdateEmployee(
+            999,
+            CreateSampleEmployee()
+        );
+
+        Assert.IsType<NotFoundObjectResult>(result);
     }
 
-    // --------------------------------------------------
-    // REJECT A DUPLICATE EMAIL DURING UPDATE
-    // --------------------------------------------------
-    // Check that PUT returns 409 Conflict when updating an employee with another employee's email.
+    // ==================================================
+    // TEST 8: REJECT DUPLICATE EMAIL DURING UPDATE
+    // ==================================================
+
     [Fact]
     public async Task UpdateEmployee_DuplicateEmail_ReturnsConflict()
     {
@@ -216,11 +286,16 @@ public class EmployeesControllerTests
             IsActive = true
         };
 
-        context.Employees.AddRange(firstEmployee, secondEmployee);
+        context.Employees.AddRange(
+            firstEmployee,
+            secondEmployee
+        );
+
         await context.SaveChangesAsync();
 
-        var controller = new EmployeesController(context);
+        var controller = CreateController(context);
 
+        // Try changing Emma's email to Sara's existing email.
         var updatedEmployee = new Employee
         {
             FullName = secondEmployee.FullName,
@@ -232,60 +307,71 @@ public class EmployeesControllerTests
 
         var result = await controller.UpdateEmployee(
             secondEmployee.Id,
-            updatedEmployee);
+            updatedEmployee
+        );
 
         Assert.IsType<ConflictObjectResult>(result);
+
+        // There should still be only two employees.
+        Assert.Equal(2, context.Employees.Count());
     }
 
-    // --------------------------------------------------
-    // DELETE AN EXISTING EMPLOYEE
-    // --------------------------------------------------
-    // Check that DELETE removes an existing employee and returns 204 No Content.
+    // ==================================================
+    // TEST 9: DELETE AN EXISTING EMPLOYEE
+    // ==================================================
+
     [Fact]
     public async Task DeleteEmployee_ExistingId_ReturnsNoContent()
     {
         using var context = CreateDbContext();
 
         var employee = CreateSampleEmployee();
+
         context.Employees.Add(employee);
         await context.SaveChangesAsync();
 
-        var controller = new EmployeesController(context);
+        var controller = CreateController(context);
 
-        var result = await controller.DeleteEmployee(employee.Id);
+        var result =
+            await controller.DeleteEmployee(employee.Id);
 
         Assert.IsType<NoContentResult>(result);
+
+        // The employee should no longer exist.
         Assert.Empty(context.Employees);
     }
 
-    // --------------------------------------------------
-    // DELETE AN EMPLOYEE THAT DOES NOT EXIST
-    // --------------------------------------------------
-    // Check that DELETE returns 404 Not Found when the employee ID does not exist.
+    // ==================================================
+    // TEST 10: DELETE A NONEXISTENT EMPLOYEE
+    // ==================================================
+
     [Fact]
     public async Task DeleteEmployee_InvalidId_ReturnsNotFound()
     {
         using var context = CreateDbContext();
-        var controller = new EmployeesController(context);
+
+        var controller = CreateController(context);
 
         var result = await controller.DeleteEmployee(999);
 
-        Assert.IsType<NotFoundResult>(result);
+        Assert.IsType<NotFoundObjectResult>(result);
     }
 
     // ==================================================
-    // NEW TESTS: DEPARTMENT AND JOB TITLE VALIDATION
+    // DEPARTMENT AND JOB TITLE VALIDATION TESTS
+    // These verify business rules, not just required fields.
     // ==================================================
 
-    // --------------------------------------------------
-    // POST: Finance cannot have a Software Developer.
-    // --------------------------------------------------
-    // Check that POST rejects an invalid department and job title with 400 Bad Request.
+    // ==================================================
+    // TEST 11: REJECT INVALID DEPARTMENT/JOB COMBINATION
+    // ==================================================
+
     [Fact]
     public async Task CreateEmployee_InvalidJobForDepartment_ReturnsBadRequest()
     {
         using var context = CreateDbContext();
-        var controller = new EmployeesController(context);
+
+        var controller = CreateController(context);
 
         var employee = new Employee
         {
@@ -298,21 +384,23 @@ public class EmployeesControllerTests
 
         var result = await controller.CreateEmployee(employee);
 
-        Assert.IsType<BadRequestObjectResult>(result.Result);
+        // Software Developer is not a valid Finance job.
+        Assert.IsType<BadRequestObjectResult>(result);
 
-        // Invalid employee must NOT be saved.
+        // Invalid employee must not be saved.
         Assert.Empty(context.Employees);
     }
 
-    // --------------------------------------------------
-    // POST: Reject departments not in the approved list.
-    // --------------------------------------------------
-    // Check that POST rejects an unknown department with 400 Bad Request and saves nothing.
+    // ==================================================
+    // TEST 12: REJECT UNKNOWN DEPARTMENT
+    // ==================================================
+
     [Fact]
     public async Task CreateEmployee_UnknownDepartment_ReturnsBadRequest()
     {
         using var context = CreateDbContext();
-        var controller = new EmployeesController(context);
+
+        var controller = CreateController(context);
 
         var employee = new Employee
         {
@@ -325,19 +413,22 @@ public class EmployeesControllerTests
 
         var result = await controller.CreateEmployee(employee);
 
-        Assert.IsType<BadRequestObjectResult>(result.Result);
+        // Unknown departments should not be accepted.
+        Assert.IsType<BadRequestObjectResult>(result);
+
         Assert.Empty(context.Employees);
     }
 
-    // --------------------------------------------------
-    // POST: Reject job titles not in the approved list.
-    // --------------------------------------------------
-    // Check that POST rejects an unknown job title with 400 Bad Request and saves nothing.
+    // ==================================================
+    // TEST 13: REJECT UNKNOWN JOB TITLE
+    // ==================================================
+
     [Fact]
     public async Task CreateEmployee_UnknownJobTitle_ReturnsBadRequest()
     {
         using var context = CreateDbContext();
-        var controller = new EmployeesController(context);
+
+        var controller = CreateController(context);
 
         var employee = new Employee
         {
@@ -350,25 +441,28 @@ public class EmployeesControllerTests
 
         var result = await controller.CreateEmployee(employee);
 
-        Assert.IsType<BadRequestObjectResult>(result.Result);
+        // Astronaut is not an approved Finance job title.
+        Assert.IsType<BadRequestObjectResult>(result);
+
         Assert.Empty(context.Employees);
     }
 
-    // --------------------------------------------------
-    // PUT: Reject an invalid department/job title pair.
-    // Also confirm the saved employee is not modified.
-    // --------------------------------------------------
-    // Check that PUT rejects an invalid department/job title with 400 Bad Request and keeps the original employee unchanged.
+    // ==================================================
+    // TEST 14: REJECT INVALID JOB DURING UPDATE
+    // ==================================================
+
     [Fact]
     public async Task UpdateEmployee_InvalidJobForDepartment_ReturnsBadRequest()
     {
-        using var context = CreateDbContePxt();
+        // Fixed the original CreateDbContePxt typo.
+        using var context = CreateDbContext();
 
         var employee = CreateSampleEmployee();
+
         context.Employees.Add(employee);
         await context.SaveChangesAsync();
 
-        var controller = new EmployeesController(context);
+        var controller = CreateController(context);
 
         var updatedEmployee = new Employee
         {
@@ -381,18 +475,33 @@ public class EmployeesControllerTests
 
         var result = await controller.UpdateEmployee(
             employee.Id,
-            updatedEmployee);
+            updatedEmployee
+        );
 
+        // Reject an invalid department/job title combination.
         Assert.IsType<BadRequestObjectResult>(result);
 
-        // The original employee should remain unchanged.
+        // Verify that the original employee remains unchanged.
         var savedEmployee =
             await context.Employees.FindAsync(employee.Id);
 
         Assert.NotNull(savedEmployee);
-        Assert.Equal("Sara Ahmed", savedEmployee.FullName);
-        Assert.Equal("Information Technology", savedEmployee.Department);
-        Assert.Equal("Software Engineer", savedEmployee.JobTitle);
+
+        Assert.Equal(
+            "Sara Ahmed",
+            savedEmployee.FullName
+        );
+
+        Assert.Equal(
+            "Information Technology",
+            savedEmployee.Department
+        );
+
+        Assert.Equal(
+            "Software Engineer",
+            savedEmployee.JobTitle
+        );
+
         Assert.True(savedEmployee.IsActive);
     }
 }

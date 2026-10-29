@@ -2,9 +2,14 @@
 //import namespaces
 using EmployeeManagement.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using EmployeeManagement.Api.Services;
 
 //create application builder
 var builder = WebApplication.CreateBuilder(args);
+// Register the Excel service for dependency injection.
+builder.Services.AddScoped<IEmployeeExcelService, EmployeeExcelService>();
+// Service responsible for reading employee records from Excel files.
+builder.Services.AddScoped<EmployeeExcelImportService>();
 
 // Set up the connection between the backend and SQL Server.
 //connecting to sql server
